@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REFERENCE HRD 앱 갤러리</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; display: flex; flex-direction: column; min-height: 100vh; }
+        .container { flex-grow: 1; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .card-container { position: relative; overflow: hidden; border-radius: 0.75rem; }
+        .card-actions { position: absolute; top: 0; right: 0; padding: 0.5rem; background-color: rgba(0, 0, 0, 0.5); border-bottom-left-radius: 0.75rem; display: flex; gap: 0.5rem; transform: translateY(-100%); transition: transform 0.3s ease-in-out; }
+        .card-container:hover .card-actions { transform: translateY(0); }
+        .emoji-thumbnail { display: flex; justify-content: center; align-items: center; width: 100%; height: 12rem; font-size: 5rem; background-color: #374151; border-radius: 0.75rem 0.75rem 0 0; }
+        #emoji-picker .emoji-item.selected { background-color: #4f46e5; border-radius: 0.5rem; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #ffffff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .filter-btn.active { background-color: #4f46e5; color: white; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8 relative pt-4">
+            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">REFERENCE HRD 앱 갤러리</h1>
+            <p class="mt-4 text-lg text-gray-400">모두가 함께 만드는 애플리케이션 포트폴리오</p>
+            <button id="manage-category-btn" class="absolute top-0 right-0 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg text-sm transition-transform transform hover:scale-105">카테고리 관리</button>
+        </header>
+
+        <div class="text-center mb-8 flex flex-wrap justify-center gap-4">
+            <button id="add-app-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">새 앱 추가하기</button>
+            <button id="ai-idea-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">✨ AI로 앱 아이디어 얻기</button>
+        </div>
+
+        <!-- 카테고리 필터 -->
+        <div id="category-filter-container" class="flex flex-wrap justify-center gap-2 mb-8">
+            <!-- 카테고리 버튼이 여기에 동적으로 추가됩니다. -->
+        </div>
+
+        <!-- 앱 갤러리 -->
+        <div id="app-gallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        <div id="loading" class="text-center py-10 hidden"><p class="text-gray-400">앱 목록을 불러오는 중...</p></div>
+    </div>
+
+    <footer class="text-center py-6 mt-auto border-t border-gray-700">
+        <p class="text-gray-500 text-sm">&copy; <span id="current-year"></span> REFERENCE HRD. All Rights Reserved.</p>
+    </footer>
+
+    <!-- 앱 추가/수정 모달 -->
+    <div id="app-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8 transform transition-all scale-95 opacity-0" id="modal-content">
+            <h2 id="modal-title" class="text-2xl font-bold mb-6 text-white"></h2>
+            <form id="app-form">
+                <input type="hidden" id="app-id">
+                <div class="mb-4"><label for="app-title" class="block text-sm font-medium text-gray-300 mb-2">앱 이름</label><input type="text" id="app-title" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2" required></div>
+                <div class="mb-4"><label for="app-url" class="block text-sm font-medium text-gray-300 mb-2">앱 URL</label><input type="url" id="app-url" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2" required></div>
+                <div class="mb-4"><label for="app-description" class="block text-sm font-medium text-gray-300 mb-2">앱 설명</label><textarea id="app-description" rows="3" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2"></textarea></div>
+                <div class="mb-4"><label for="app-category" class="block text-sm font-medium text-gray-300 mb-2">카테고리</label><select id="app-category" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2"></select></div>
+                <div class="mb-4"><label class="block text-sm font-medium text-gray-300 mb-2">썸네일 타입</label><div class="flex gap-4"><label class="flex items-center"><input type="radio" name="thumbnail-type" value="image" class="form-radio h-4 w-4 text-indigo-600" checked><span class="ml-2 text-gray-300">이미지 URL</span></label><label class="flex items-center"><input type="radio" name="thumbnail-type" value="emoji" class="form-radio h-4 w-4 text-indigo-600"><span class="ml-2 text-gray-300">이모지</span></label></div></div>
+                <div id="thumbnail-url-container" class="mb-6"><label for="thumbnail-url" class="block text-sm font-medium text-gray-300 mb-2">썸네일 이미지 URL</label><input type="url" id="thumbnail-url" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2"></div>
+                <div id="thumbnail-emoji-container" class="mb-6 hidden"><label class="block text-sm font-medium text-gray-300 mb-2">이모지 선택</label><div id="emoji-picker" class="grid grid-cols-8 gap-2 bg-gray-700 p-3 rounded-lg max-h-48 overflow-y-auto"></div><input type="hidden" id="selected-emoji"></div>
+                <div class="flex justify-end gap-4"><button type="button" id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">취소</button><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">저장</button></div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- AI 아이디어 모달 -->
+    <div id="ai-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8 transform transition-all scale-95 opacity-0" id="ai-modal-content">
+            <h2 class="text-2xl font-bold mb-4 text-white">✨ AI 앱 아이디어 생성기</h2><p class="text-gray-400 mb-6">키워드를 입력하거나 랜덤 아이디어를 받아보세요!</p>
+            <div class="flex gap-2 mb-4"><input type="text" id="ai-keyword" placeholder="예: 생산성, 재미있는 게임" class="flex-grow bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2"><button id="generate-idea-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center w-36">아이디어 생성</button></div>
+            <div class="text-center mb-6"><button id="random-idea-btn" class="text-purple-400 hover:text-purple-300 text-sm">또는, 랜덤 아이디어!</button></div>
+            <div id="ai-result-container" class="bg-gray-700 p-4 rounded-lg min-h-[150px] flex items-center justify-center hidden"><div id="ai-loading" class="spinner hidden"></div><div id="ai-result" class="text-left w-full"></div></div>
+            <div id="ai-error" class="text-red-400 text-center my-4 hidden"></div>
+            <div class="flex justify-end gap-4 mt-6"><button type="button" id="ai-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">닫기</button><button type="button" id="add-from-ai-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg hidden">갤러리에 추가하기</button></div>
+        </div>
+    </div>
+
+    <!-- 카테고리 관리 모달 -->
+    <div id="category-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8" id="category-modal-content">
+            <h2 class="text-2xl font-bold mb-6 text-white">카테고리 관리</h2>
+            <div id="category-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto"></div>
+            <div class="flex gap-2 mb-4"><input type="text" id="new-category-name" placeholder="새 카테고리 이름" class="flex-grow bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2"><button id="add-category-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">추가</button></div>
+            <div class="flex justify-end"><button type="button" id="category-close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">닫기</button></div>
+        </div>
+    </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <h3 class="text-xl font-bold mb-4">정말 삭제하시겠습니까?</h3><p class="text-gray-400 mb-6">이 작업은 되돌릴 수 없습니다.</p>
+            <div class="flex justify-center gap-4"><button id="cancel-delete-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">취소</button><button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg">삭제</button></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let appsCollectionRef, categoriesCollectionRef, unsubscribeApps, unsubscribeCategories;
+        let allApps = [], userCategories = [], currentCategoryFilter = '전체';
+        let generatedIdea = null;
+
+        async function setupAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+                setupFirestore();
+                loadAndListenCategories();
+                loadAndListenApps();
+            } catch (error) { console.error("Firebase 인증 오류:", error); }
+        }
+
+        function setupFirestore() {
+            // *** CHANGED: Use a public path instead of a user-specific path ***
+            appsCollectionRef = collection(db, `artifacts/${appId}/public/data/apps`);
+            categoriesCollectionRef = collection(db, `artifacts/${appId}/public/data/categories`);
+        }
+
+        const ui = {
+            gallery: document.getElementById('app-gallery'),
+            addAppBtn: document.getElementById('add-app-btn'),
+            modal: document.getElementById('app-modal'),
+            modalContent: document.getElementById('modal-content'),
+            modalTitle: document.getElementById('modal-title'),
+            appForm: document.getElementById('app-form'),
+            cancelBtn: document.getElementById('cancel-btn'),
+            appIdInput: document.getElementById('app-id'),
+            appTitleInput: document.getElementById('app-title'),
+            appUrlInput: document.getElementById('app-url'),
+            appDescriptionInput: document.getElementById('app-description'),
+            appCategoryInput: document.getElementById('app-category'),
+            thumbnailUrlInput: document.getElementById('thumbnail-url'),
+            selectedEmojiInput: document.getElementById('selected-emoji'),
+            thumbnailUrlContainer: document.getElementById('thumbnail-url-container'),
+            thumbnailEmojiContainer: document.getElementById('thumbnail-emoji-container'),
+            thumbnailTypeRadios: document.querySelectorAll('input[name="thumbnail-type"]'),
+            emojiPicker: document.getElementById('emoji-picker'),
+            loading: document.getElementById('loading'),
+            deleteConfirmModal: document.getElementById('delete-confirm-modal'),
+            cancelDeleteBtn: document.getElementById('cancel-delete-btn'),
+            confirmDeleteBtn: document.getElementById('confirm-delete-btn'),
+            aiIdeaBtn: document.getElementById('ai-idea-btn'),
+            aiModal: document.getElementById('ai-modal'),
+            aiModalContent: document.getElementById('ai-modal-content'),
+            aiCancelBtn: document.getElementById('ai-cancel-btn'),
+            generateIdeaBtn: document.getElementById('generate-idea-btn'),
+            randomIdeaBtn: document.getElementById('random-idea-btn'),
+            aiKeywordInput: document.getElementById('ai-keyword'),
+            aiResultContainer: document.getElementById('ai-result-container'),
+            aiLoading: document.getElementById('ai-loading'),
+            aiResult: document.getElementById('ai-result'),
+            aiError: document.getElementById('ai-error'),
+            addFromAiBtn: document.getElementById('add-from-ai-btn'),
+            manageCategoryBtn: document.getElementById('manage-category-btn'),
+            categoryModal: document.getElementById('category-modal'),
+            categoryModalContent: document.getElementById('category-modal-content'),
+            categoryList: document.getElementById('category-list'),
+            newCategoryNameInput: document.getElementById('new-category-name'),
+            addCategoryBtn: document.getElementById('add-category-btn'),
+            categoryCloseBtn: document.getElementById('category-close-btn'),
+            categoryFilterContainer: document.getElementById('category-filter-container'),
+        };
+        
+        let docIdToDelete = null;
+
+        const emojiList = ['😀','😁','😂','🤣','😊','😇','😍','😘','😜','🤫','🤔','😏','🚀','💻','💡','🎉','💾','📈','🎨','🎵','🎮','📚','✏️','💼','📊','⚙️','🛠️','🌐','🔗','💬','👥','❤️','⭐','✅','🤖','🧠','⚡','🔥','🎯','🏆','🥇','✨','🎁','✉️','📞','📅','⏰','🔍','🔒','🔑','💰','🍔','🍕','☕','🏠','🚗','✈️','🌍','🌞','🌙','☁️','☂️','❄️','🌊','🏞️','🌋','💡','📈','📉','📊','📋','📌','📍','📎','📏','📐','✂️','🗑️','🗒️','🗓️','📇','🗄️','📫','📮','📦','📝','📄','📑','🔖','🏷️','💸','💳','💎','⚖️','🦯','🔗','⛓️','🧰','🧲','🧪','🧫','🧬','🔬','🔭','📡','🛡️','💊','🩹','🩺','💯'];
+
+        function populateEmojiPicker() {
+            ui.emojiPicker.innerHTML = '';
+            emojiList.forEach(emoji => {
+                const emojiItem = document.createElement('div');
+                emojiItem.textContent = emoji;
+                emojiItem.className = 'emoji-item cursor-pointer text-2xl p-1 flex justify-center items-center transition-transform transform hover:scale-125';
+                emojiItem.addEventListener('click', () => {
+                    const currentSelected = ui.emojiPicker.querySelector('.selected');
+                    if (currentSelected) currentSelected.classList.remove('selected');
+                    emojiItem.classList.add('selected');
+                    ui.selectedEmojiInput.value = emoji;
+                });
+                ui.emojiPicker.appendChild(emojiItem);
+            });
+        }
+
+        function handleThumbnailTypeChange() {
+            const selectedType = document.querySelector('input[name="thumbnail-type"]:checked').value;
+            ui.thumbnailUrlContainer.classList.toggle('hidden', selectedType !== 'image');
+            ui.thumbnailEmojiContainer.classList.toggle('hidden', selectedType !== 'emoji');
+            ui.thumbnailUrlInput.required = selectedType === 'image';
+            ui.selectedEmojiInput.required = selectedType === 'emoji';
+        }
+
+        function openModal(mode = 'add', app = {}) {
+            ui.appForm.reset();
+            populateCategoryDropdown(app.category);
+            ui.modalTitle.textContent = mode === 'edit' ? '앱 정보 수정' : '새 앱 추가';
+            ui.appIdInput.value = app.id || '';
+            ui.appTitleInput.value = app.title || '';
+            ui.appUrlInput.value = app.url || '';
+            ui.appDescriptionInput.value = app.description || '';
+            
+            const isEmoji = app.thumbnailType === 'emoji';
+            document.querySelector(`input[name="thumbnail-type"][value="${isEmoji ? 'emoji' : 'image'}"]`).checked = true;
+            if (isEmoji) {
+                ui.selectedEmojiInput.value = app.thumbnailValue;
+                const emojiItems = ui.emojiPicker.querySelectorAll('.emoji-item');
+                emojiItems.forEach(item => item.classList.toggle('selected', item.textContent === app.thumbnailValue));
+            } else {
+                ui.thumbnailUrlInput.value = app.thumbnailValue || '';
+            }
+            
+            handleThumbnailTypeChange();
+            ui.modal.classList.remove('hidden');
+            setTimeout(() => ui.modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function closeModal(modalElement, modalContentElement) {
+            modalContentElement.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => modalElement.classList.add('hidden'), 200);
+        }
+        
+        async function callGeminiAPI(prompt) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { title: { type: "STRING" }, category: { type: "STRING" }, emoji: { type: "STRING" }, description: { type: "STRING" } }, required: ["title", "category", "emoji", "description"] } }
+            };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API 요청 실패: ${response.statusText}`);
+            const result = await response.json();
+            return JSON.parse(result.candidates[0].content.parts[0].text);
+        }
+
+        async function getAIidea(isRandom = false) {
+            const keyword = ui.aiKeywordInput.value.trim();
+            if (!keyword && !isRandom) { ui.aiError.textContent = '키워드를 입력해주세요.'; ui.aiError.classList.remove('hidden'); return; }
+            ui.aiResultContainer.classList.remove('hidden'); ui.aiLoading.classList.remove('hidden'); ui.aiResult.classList.add('hidden'); ui.aiError.classList.add('hidden'); ui.addFromAiBtn.classList.add('hidden');
+            ui.generateIdeaBtn.disabled = true; ui.generateIdeaBtn.innerHTML = `<div class="spinner"></div>`;
+            const categories = userCategories.map(c => c.name).join(", ") || "기타, 생산성, 게임";
+            const prompt = isRandom ? `Suggest a creative and simple web app idea. Provide a catchy Korean title, a suitable category from this list [${categories}], a single relevant emoji for the thumbnail, and a brief one-sentence Korean description.` : `Suggest a creative and simple web app idea based on the keyword '${keyword}'. Provide a catchy Korean title, a suitable category from this list [${categories}], a single relevant emoji for the thumbnail, and a brief one-sentence Korean description.`;
+            try {
+                generatedIdea = await callGeminiAPI(prompt);
+                ui.aiResult.innerHTML = `<p class="mb-2"><strong class="text-purple-300">이름:</strong> ${generatedIdea.title}</p><p class="mb-2"><strong class="text-purple-300">설명:</strong> ${generatedIdea.description}</p><p class="mb-2"><strong class="text-purple-300">카테고리:</strong> ${generatedIdea.category}</p><p><strong class="text-purple-300">썸네일:</strong> ${generatedIdea.emoji}</p>`;
+                ui.aiResult.classList.remove('hidden'); ui.addFromAiBtn.classList.remove('hidden');
+            } catch (error) {
+                ui.aiError.textContent = '아이디어 생성에 실패했습니다.'; ui.aiError.classList.remove('hidden'); generatedIdea = null;
+            } finally {
+                ui.aiLoading.classList.add('hidden'); ui.generateIdeaBtn.disabled = false; ui.generateIdeaBtn.innerHTML = '아이디어 생성';
+            }
+        }
+
+        function renderFilteredApps() {
+            const filteredApps = currentCategoryFilter === '전체' ? allApps : allApps.filter(app => app.category === currentCategoryFilter);
+            renderApps(filteredApps);
+        }
+
+        function renderApps(apps) {
+            ui.gallery.innerHTML = '';
+            if (apps.length === 0) {
+                 ui.gallery.innerHTML = `<div class="col-span-full text-center py-10"><p class="text-gray-400">표시할 앱이 없습니다.</p></div>`;
+                return;
+            }
+            apps.forEach(app => {
+                const card = document.createElement('div');
+                card.className = 'card-container bg-gray-800 shadow-lg transition-transform transform hover:-translate-y-1 flex flex-col';
+                let thumbnailHTML = (app.thumbnailType === 'emoji' && app.thumbnailValue) ? `<div class="emoji-thumbnail">${app.thumbnailValue}</div>` : `<img src="${app.thumbnailValue || 'https://placehold.co/600x400/1f2937/ffffff?text=Image+Not+Found'}" alt="${app.title}" class="w-full h-48 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/600x400/1f2937/ffffff?text=Image+Not+Found';">`;
+                card.innerHTML = `<a href="${app.url}" target="_blank" rel="noopener noreferrer" class="block">${thumbnailHTML}</a><div class="p-4 flex-grow flex flex-col"><h3 class="font-bold text-lg truncate mb-2">${app.title}</h3><p class="text-gray-400 text-sm mb-3 flex-grow">${app.description || ''}</p><div class="mt-auto"><span class="bg-gray-700 text-indigo-300 text-xs font-medium px-2.5 py-1 rounded-full">${app.category || '기타'}</span></div></div><div class="card-actions"><button data-id="${app.id}" class="edit-btn p-2 bg-blue-600 hover:bg-blue-700 rounded-full text-white"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button><button data-id="${app.id}" class="delete-btn p-2 bg-red-600 hover:bg-red-700 rounded-full text-white"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button></div>`;
+                const appData = allApps.find(a => a.id === card.querySelector('.edit-btn').dataset.id);
+                card.querySelector('.edit-btn').addEventListener('click', (e) => { e.stopPropagation(); openModal('edit', appData); });
+                card.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); docIdToDelete = appData.id; ui.deleteConfirmModal.classList.remove('hidden'); });
+                ui.gallery.appendChild(card);
+            });
+        }
+
+        function loadAndListenApps() {
+            if (!appsCollectionRef) return;
+            ui.loading.classList.remove('hidden');
+            if (unsubscribeApps) unsubscribeApps();
+            unsubscribeApps = onSnapshot(appsCollectionRef, (snapshot) => {
+                ui.loading.classList.add('hidden');
+                allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allApps.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                renderFilteredApps();
+            }, (error) => { console.error("앱 로딩 오류:", error); });
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const id = ui.appIdInput.value;
+            const thumbnailType = document.querySelector('input[name="thumbnail-type"]:checked').value;
+            const thumbnailValue = thumbnailType === 'image' ? ui.thumbnailUrlInput.value : ui.selectedEmojiInput.value;
+            if (thumbnailType === 'emoji' && !thumbnailValue) { alert('이모지를 선택해주세요.'); return; }
+            const appData = { title: ui.appTitleInput.value, url: ui.appUrlInput.value, description: ui.appDescriptionInput.value, category: ui.appCategoryInput.value, thumbnailType, thumbnailValue };
+            try {
+                if (id) await setDoc(doc(db, appsCollectionRef.path, id), appData, { merge: true });
+                else await addDoc(appsCollectionRef, { ...appData, createdAt: serverTimestamp() });
+                closeModal(ui.modal, ui.modalContent);
+            } catch (error) { console.error("데이터 저장 오류:", error); }
+        }
+
+        async function deleteApp() {
+            if (!docIdToDelete) return;
+            try { await deleteDoc(doc(db, appsCollectionRef.path, docIdToDelete)); } 
+            catch (error) { console.error("데이터 삭제 오류:", error); } 
+            finally { docIdToDelete = null; ui.deleteConfirmModal.classList.add('hidden'); }
+        }
+
+        // --- 카테고리 로직 ---
+        function populateCategoryFilters() {
+            ui.categoryFilterContainer.innerHTML = '';
+            const categories = ['전체', ...userCategories.map(c => c.name)];
+            categories.forEach(category => {
+                const btn = document.createElement('button');
+                btn.textContent = category;
+                btn.className = 'filter-btn px-4 py-2 rounded-lg text-sm font-medium transition bg-gray-700 hover:bg-gray-600';
+                if (category === currentCategoryFilter) btn.classList.add('active');
+                btn.addEventListener('click', () => {
+                    currentCategoryFilter = category;
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderFilteredApps();
+                });
+                ui.categoryFilterContainer.appendChild(btn);
+            });
+        }
+
+        function populateCategoryDropdown(selectedCategory) {
+            ui.appCategoryInput.innerHTML = '';
+            userCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.name;
+                option.textContent = cat.name;
+                if (cat.name === selectedCategory) option.selected = true;
+                ui.appCategoryInput.appendChild(option);
+            });
+        }
+
+        function renderCategoryManagementList() {
+            ui.categoryList.innerHTML = '';
+            userCategories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-gray-700 p-2 rounded';
+                div.innerHTML = `<span>${cat.name}</span><button data-id="${cat.id}" class="delete-category-btn text-red-400 hover:text-red-300">&times;</button>`;
+                ui.categoryList.appendChild(div);
+            });
+        }
+
+        async function loadAndListenCategories() {
+            if (!categoriesCollectionRef) return;
+            if (unsubscribeCategories) unsubscribeCategories();
+            unsubscribeCategories = onSnapshot(categoriesCollectionRef, async (snapshot) => {
+                if (snapshot.empty) {
+                    const defaultCategories = ['생산성', '게임', '유틸리티', '기타'];
+                    const batch = writeBatch(db);
+                    defaultCategories.forEach(name => {
+                        const newCatRef = doc(categoriesCollectionRef);
+                        batch.set(newCatRef, { name });
+                    });
+                    await batch.commit();
+                    return;
+                }
+                userCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                userCategories.sort((a, b) => a.name.localeCompare(b.name));
+                populateCategoryFilters();
+                renderCategoryManagementList();
+            });
+        }
+
+        // --- 이벤트 리스너 ---
+        ui.addAppBtn.addEventListener('click', () => openModal('add'));
+        ui.cancelBtn.addEventListener('click', () => closeModal(ui.modal, ui.modalContent));
+        ui.appForm.addEventListener('submit', handleFormSubmit);
+        ui.confirmDeleteBtn.addEventListener('click', deleteApp);
+        
+        ui.aiIdeaBtn.addEventListener('click', () => {
+            ui.aiKeywordInput.value = '';
+            ui.aiResultContainer.classList.add('hidden');
+            ui.aiResult.innerHTML = '';
+            ui.aiError.classList.add('hidden');
+            ui.addFromAiBtn.classList.add('hidden');
+            generatedIdea = null;
+            ui.aiModal.classList.remove('hidden');
+            setTimeout(() => ui.aiModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        });
+        ui.aiCancelBtn.addEventListener('click', () => closeModal(ui.aiModal, ui.aiModalContent));
+        ui.generateIdeaBtn.addEventListener('click', () => getAIidea(false));
+        ui.randomIdeaBtn.addEventListener('click', () => getAIidea(true));
+        ui.addFromAiBtn.addEventListener('click', async () => {
+            if (generatedIdea) {
+                const appData = { title: generatedIdea.title, url: '#', description: generatedIdea.description, category: generatedIdea.category, thumbnailType: 'emoji', thumbnailValue: generatedIdea.emoji, createdAt: serverTimestamp() };
+                await addDoc(appsCollectionRef, appData);
+                closeModal(ui.aiModal, ui.aiModalContent);
+            }
+        });
+
+        ui.manageCategoryBtn.addEventListener('click', () => ui.categoryModal.classList.remove('hidden'));
+        ui.categoryCloseBtn.addEventListener('click', () => ui.categoryModal.classList.add('hidden'));
+        ui.addCategoryBtn.addEventListener('click', async () => {
+            const name = ui.newCategoryNameInput.value.trim();
+            if (name) { await addDoc(categoriesCollectionRef, { name }); ui.newCategoryNameInput.value = ''; }
+        });
+        ui.categoryList.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-category-btn')) {
+                const id = e.target.dataset.id;
+                await deleteDoc(doc(db, categoriesCollectionRef.path, id));
+            }
+        });
+
+        [ui.modal, ui.aiModal, ui.deleteConfirmModal, ui.categoryModal].forEach(m => {
+            m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); });
+        });
+
+        // --- 앱 시작 ---
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        populateEmojiPicker();
+        ui.thumbnailTypeRadios.forEach(radio => radio.addEventListener('change', handleThumbnailTypeChange));
+        setupAuth();
+    </script>
+</body>
+</html>
