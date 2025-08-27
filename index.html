@@ -27,8 +27,8 @@
 
     <div class="container mx-auto p-4 sm:p-6 lg:p-8">
         <header class="text-center mb-8 relative pt-4">
-            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">REFERENCE HRD 앱 갤러리</h1>
-            <p class="mt-4 text-lg text-gray-400">모두가 함께 만드는 애플리케이션 포트폴리오</p>
+            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">AI 바이브 코딩 앱 갤러리</h1>
+            <p class="mt-4 text-lg text-gray-400">레퍼런스HRD에서 개발한 애플리케이션 포트폴리오</p>
             <button id="manage-category-btn" class="absolute top-0 right-0 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg text-sm transition-transform transform hover:scale-105">카테고리 관리</button>
         </header>
 
@@ -99,17 +99,20 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- Firebase v8 SDK (for better compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // NOTE: This script no longer uses `type="module"` and uses the Firebase v8 namespaced API for better compatibility.
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
         let appsCollectionRef, categoriesCollectionRef, unsubscribeApps, unsubscribeCategories;
         let allApps = [], userCategories = [], currentCategoryFilter = '전체';
@@ -117,8 +120,8 @@
 
         async function setupAuth() {
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await auth.signInWithCustomToken(__initial_auth_token);
+                else await auth.signInAnonymously();
                 setupFirestore();
                 loadAndListenCategories();
                 loadAndListenApps();
@@ -126,9 +129,8 @@
         }
 
         function setupFirestore() {
-            // *** CHANGED: Use a public path instead of a user-specific path ***
-            appsCollectionRef = collection(db, `artifacts/${appId}/public/data/apps`);
-            categoriesCollectionRef = collection(db, `artifacts/${appId}/public/data/categories`);
+            appsCollectionRef = db.collection(`artifacts/${appId}/public/data/apps`);
+            categoriesCollectionRef = db.collection(`artifacts/${appId}/public/data/categories`);
         }
 
         const ui = {
@@ -178,7 +180,7 @@
         
         let docIdToDelete = null;
 
-        const emojiList = ['😀','😁','😂','🤣','😊','😇','😍','😘','😜','🤫','🤔','😏','🚀','💻','💡','🎉','💾','📈','🎨','🎵','🎮','📚','✏️','💼','📊','⚙️','🛠️','🌐','🔗','💬','👥','❤️','⭐','✅','🤖','🧠','⚡','🔥','🎯','🏆','🥇','✨','🎁','✉️','📞','📅','⏰','🔍','🔒','🔑','💰','🍔','🍕','☕','🏠','🚗','✈️','🌍','🌞','🌙','☁️','☂️','❄️','🌊','🏞️','🌋','💡','📈','📉','📊','📋','📌','📍','📎','📏','📐','✂️','🗑️','🗒️','🗓️','📇','🗄️','📫','📮','📦','📝','📄','📑','🔖','🏷️','💸','💳','💎','⚖️','🦯','🔗','⛓️','🧰','🧲','🧪','🧫','🧬','🔬','🔭','📡','🛡️','💊','🩹','🩺','💯'];
+        const emojiList = ['😀','😁','😂','🤣','😊','😇','😍','😘','😜','🤫','🤔','😏','🚀','💻','💡','🎉','💾','📈','🎨','🎵','🎮','📚','✏️','💼','📊','⚙️','🛠️','🌐','🔗','💬','👥','❤️','⭐','✅','🤖','🧠','⚡','🔥','🎯','🏆','🥇','✨','🎁','✉️','📞','📅','⏰','🔍','🔒','🔑','💰','🍔','🍕','☕','🏠','🚗','✈️','🌍','🌞','🌙','☁️','☂️','❄️','🌊','🏞️','🌋','💡','📈','📉','📊','📋','📌','📍','📎','📏','📐','✂️','🗑️','🗒️','🗓️','-','🗄️','📫','📮','📦','📝','📄','📑','🔖','🏷️','💸','💳','💎','⚖️','🦯','🔗','⛓️','🧰','🧲','🧪','🧫','🧬','🔬','🔭','📡','🛡️','💊','🩹','🩺','💯'];
 
         function populateEmojiPicker() {
             ui.emojiPicker.innerHTML = '';
@@ -291,7 +293,7 @@
             if (!appsCollectionRef) return;
             ui.loading.classList.remove('hidden');
             if (unsubscribeApps) unsubscribeApps();
-            unsubscribeApps = onSnapshot(appsCollectionRef, (snapshot) => {
+            unsubscribeApps = appsCollectionRef.onSnapshot((snapshot) => {
                 ui.loading.classList.add('hidden');
                 allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 allApps.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
@@ -307,15 +309,15 @@
             if (thumbnailType === 'emoji' && !thumbnailValue) { alert('이모지를 선택해주세요.'); return; }
             const appData = { title: ui.appTitleInput.value, url: ui.appUrlInput.value, description: ui.appDescriptionInput.value, category: ui.appCategoryInput.value, thumbnailType, thumbnailValue };
             try {
-                if (id) await setDoc(doc(db, appsCollectionRef.path, id), appData, { merge: true });
-                else await addDoc(appsCollectionRef, { ...appData, createdAt: serverTimestamp() });
+                if (id) await appsCollectionRef.doc(id).set(appData, { merge: true });
+                else await appsCollectionRef.add({ ...appData, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
                 closeModal(ui.modal, ui.modalContent);
             } catch (error) { console.error("데이터 저장 오류:", error); }
         }
 
         async function deleteApp() {
             if (!docIdToDelete) return;
-            try { await deleteDoc(doc(db, appsCollectionRef.path, docIdToDelete)); } 
+            try { await appsCollectionRef.doc(docIdToDelete).delete(); } 
             catch (error) { console.error("데이터 삭제 오류:", error); } 
             finally { docIdToDelete = null; ui.deleteConfirmModal.classList.add('hidden'); }
         }
@@ -363,12 +365,12 @@
         async function loadAndListenCategories() {
             if (!categoriesCollectionRef) return;
             if (unsubscribeCategories) unsubscribeCategories();
-            unsubscribeCategories = onSnapshot(categoriesCollectionRef, async (snapshot) => {
+            unsubscribeCategories = categoriesCollectionRef.onSnapshot(async (snapshot) => {
                 if (snapshot.empty) {
                     const defaultCategories = ['생산성', '게임', '유틸리티', '기타'];
-                    const batch = writeBatch(db);
+                    const batch = db.batch();
                     defaultCategories.forEach(name => {
-                        const newCatRef = doc(categoriesCollectionRef);
+                        const newCatRef = categoriesCollectionRef.doc();
                         batch.set(newCatRef, { name });
                     });
                     await batch.commit();
@@ -402,8 +404,8 @@
         ui.randomIdeaBtn.addEventListener('click', () => getAIidea(true));
         ui.addFromAiBtn.addEventListener('click', async () => {
             if (generatedIdea) {
-                const appData = { title: generatedIdea.title, url: '#', description: generatedIdea.description, category: generatedIdea.category, thumbnailType: 'emoji', thumbnailValue: generatedIdea.emoji, createdAt: serverTimestamp() };
-                await addDoc(appsCollectionRef, appData);
+                const appData = { title: generatedIdea.title, url: '#', description: generatedIdea.description, category: generatedIdea.category, thumbnailType: 'emoji', thumbnailValue: generatedIdea.emoji, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+                await appsCollectionRef.add(appData);
                 closeModal(ui.aiModal, ui.aiModalContent);
             }
         });
@@ -412,17 +414,23 @@
         ui.categoryCloseBtn.addEventListener('click', () => ui.categoryModal.classList.add('hidden'));
         ui.addCategoryBtn.addEventListener('click', async () => {
             const name = ui.newCategoryNameInput.value.trim();
-            if (name) { await addDoc(categoriesCollectionRef, { name }); ui.newCategoryNameInput.value = ''; }
+            if (name) { await categoriesCollectionRef.add({ name }); ui.newCategoryNameInput.value = ''; }
         });
         ui.categoryList.addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-category-btn')) {
                 const id = e.target.dataset.id;
-                await deleteDoc(doc(db, categoriesCollectionRef.path, id));
+                await categoriesCollectionRef.doc(id).delete();
             }
         });
 
         [ui.modal, ui.aiModal, ui.deleteConfirmModal, ui.categoryModal].forEach(m => {
             m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); });
+        });
+        
+        // *** ADDED: Event listener for the cancel button in the delete confirmation modal ***
+        ui.cancelDeleteBtn.addEventListener('click', () => {
+            ui.deleteConfirmModal.classList.add('hidden');
+            docIdToDelete = null;
         });
 
         // --- 앱 시작 ---
